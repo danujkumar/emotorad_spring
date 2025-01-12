@@ -15,7 +15,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Document(collection = "user")
+@Document(collection = "User")
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
@@ -32,6 +32,7 @@ public class user {
     private String linkPrecedence;
 
     @Builder.Default
+    @DBRef
     private String linkedId = null;
 
     private String product;
