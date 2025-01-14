@@ -25,7 +25,7 @@ public class Identify {
     }
 
     @PostMapping("/identify")
-    public ResponseEntity<Map<String, Object>> identify(@RequestBody jsonParser u){
+    public ResponseEntity<Map<String, Object>> endPoints(@RequestBody jsonParser u){
         return identify.endPoint(u);
     }
 }
