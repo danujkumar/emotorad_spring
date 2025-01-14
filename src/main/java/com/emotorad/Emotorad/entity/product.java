@@ -1,35 +1,27 @@
 package com.emotorad.Emotorad.entity;
 
-import java.util.HashSet;
+import java.util.List;
 
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import com.mongodb.lang.NonNull;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Document(collection = "Hashing")
+@Document(collection = "Product")
 @NoArgsConstructor
 @Builder
 @AllArgsConstructor
 @Data
-public class hashing {
-    
+public class product {
     @Id
-    private ObjectId id; 
+    private ObjectId Id;
 
-    @NonNull
     @DBRef
-    private user primary;  
-
-
-    private HashSet<String> email;
-
-    private HashSet<String> phone;
+    private user primaryId;
+    private List<String> items;
 }

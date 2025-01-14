@@ -25,18 +25,16 @@ public class user {
     private ObjectId Id;
 
     @NonNull
-    private Integer email;
+    private String email;
     @NonNull
-    private Integer phone;
+    private String phone;
     @NonNull
     private String linkPrecedence;
 
     @Builder.Default
     @DBRef
-    private String linkedId = null;
+    private user linkedId = null;
 
-    private String product;
-    
     @Builder.Default
     private Date createdAt = new Date();  
 

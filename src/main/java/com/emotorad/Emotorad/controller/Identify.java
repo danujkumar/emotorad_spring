@@ -1,5 +1,7 @@
 package com.emotorad.Emotorad.controller;
 
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,7 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.emotorad.Emotorad.entity.user;
+import com.emotorad.Emotorad.entity.jsonParser;
 import com.emotorad.Emotorad.services.Identification;
 
 @RestController
@@ -23,8 +25,7 @@ public class Identify {
     }
 
     @PostMapping("/identify")
-    public ResponseEntity<String> identify(@RequestBody user u){
-        int status = identify.endPoint(u);
-        return new ResponseEntity<String>("This is system...", HttpStatus.CREATED);
+    public ResponseEntity<Map<String, Object>> identify(@RequestBody jsonParser u){
+        return identify.endPoint(u);
     }
 }

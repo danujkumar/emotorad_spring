@@ -1,25 +1,25 @@
 package com.emotorad.Emotorad.services;
 
-import static com.mongodb.client.model.Filters.*;
-
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 import org.springframework.stereotype.Service;
 
+import com.emotorad.Emotorad.entity.hashing;
+import com.emotorad.Emotorad.entity.jsonParser;
+import com.emotorad.Emotorad.entity.product;
 import com.emotorad.Emotorad.entity.user;
 import com.emotorad.Emotorad.repository.hashRepo;
+import com.emotorad.Emotorad.repository.productRepo;
 import com.emotorad.Emotorad.repository.userRepo;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.Updates;
 
 @Service
 public class Identification {
@@ -30,64 +30,87 @@ public class Identification {
     @Autowired
     hashRepo hash;
 
+    @Autowired
+    productRepo item;
+
+    Map<String, Object> mp = new HashMap<String, Object>();
+
     // This is used to update the hash in mongo so that we can retrieve all
     // information of primary and secondary efficiently
-    private void hashUpdater() {
+    public void updateHash(user primaryId, user newPrimaryId, String email, String phone) {
+        hashing h = hash.findByprimary(primaryId);
+        h.setPrimary(newPrimaryId);
+        HashSet<String> temp = h.getEmail();
+        temp.add(email);
+        h.setEmail(temp);
 
+        temp = h.getPhone();
+        temp.add(phone);
+        h.setPhone(temp);
+
+        hash.save(h);
+    }
+
+    public void updateHash(user primaryId, String email, String phone) {
+        hashing h = new hashing();
+        h.setPrimary(primaryId);
+
+        HashSet<String> temp = new HashSet<String>();
+        temp.add(email);
+        h.setEmail(temp);
+
+        temp = new HashSet<String>();
+        temp.add(phone);
+        h.setPhone(temp);
+
+        hash.save(h);
     }
 
     //save the documents here
-    private Document saveDetails(String email, String phone, String product, Object linkedId, String linkPrecedence) {
-        Document newUser = new Document("email", email)
-                .append("phone", phone)
-                .append("product", product)
-                .append("linkedId", new Document("$ref", "User").append("$id", linkedId))
-                .append("linkPrecedence", linkPrecedence);
+    private user saveDetails(String email, String phone, String linkPrecedence) {
+        user u = new user();
+        u.setEmail(email);
+        u.setPhone(phone);
+        u.setLinkPrecedence(linkPrecedence);
 
-        userCollection.insertOne(newUser);
-
-        return newUser;
+        return userUpdate.save(u);
     }
 
+    //save the product only
+    private void updateProduct(String items, user id, user change) {
+        product p = item.findByprimaryId(id);
+        List<String> a = p.getItems();
+        a.add(items);
+        p.setItems(a);
+        if(change != null) p.setPrimaryId(change);
+        item.save(p);
+    }
 
+    private void updateProduct(String items, user id)
+    {
+        product p = new product();
+        p.setPrimaryId(id);
+        ArrayList<String> temp = new ArrayList<String>();
+        temp.add(items);
+        p.setItems(temp);
+        item.save(p);
+    }
 
     // This function is used to update/transfer secondary contacts
-    private void changeofSecondary() {
+    private void changeofSecondary(user primary, user secondary) {
+        List<user> temp = primary.getSecondaryContacts();
+        temp.add(primary);
+        
+        secondary.setLinkPrecedence("primary");
+        secondary.setSecondaryContacts(temp);
+        
+        primary.setLinkPrecedence("secondary");
+        primary.setLinkedId(secondary);
+        primary.setSecondaryContacts(new ArrayList<user>());
 
+        userUpdate.save(primary);
+        userUpdate.save(secondary);
     }
-
-    // This function is to update secondary contacts only
-    private void secondaryUpdate(ObjectId primary, ObjectId secondary) {
-        userCollection.updateOne(
-            eq("_id", primary), 
-            Updates.addEachToSet("secondaryContacts", java.util.Arrays.asList(secondary))
-        );
-    }
-
-    private MongoCollection<Document> userCollection;
-    private MongoCollection<Document> hashCollection;
-
-    private Document findPrimaryUser(String email, String phone) {
-        return userCollection
-                .find(or(eq("email", email), eq("phone", phone)))
-                .filter(eq("linkPrecedence", "primary"))
-                .first();
-    }
-
-    private Document findSecondaryUser(String email, String phone) {
-        return userCollection
-                .find(or(eq("email", email), eq("phone", phone)))
-                .filter(eq("linkPrecedence", "secondary"))
-                .first();
-    }
-
-    public void createHash(ObjectId primaryId, String email, String phone) {
-        Document hashDocument = new Document("primary", primaryId)
-                .append("email", Collections.singletonList(email)) 
-                .append("phone", Collections.singletonList(phone));
-        hashCollection.insertOne(hashDocument);        
-    }
-
 
     public ResponseEntity<Map<String, Object>> buildResponse(Document primaryContact) {
         // Extract fields from the Document
@@ -122,36 +145,57 @@ public class Identification {
     
 
     // This is endpoint
-    public ResponseEntity<Map<String, Object>> endPoint(user u){
+    public ResponseEntity<Map<String, Object>> endPoint(jsonParser u){
         try {
-            Document pc = findPrimaryUser( u.getEmail().toString(), u.getPhone().toString() );
-            Document sec = findSecondaryUser( u.getEmail().toString(), u.getPhone().toString() );
+            user pc = userUpdate.findPrimaryUser(u.getEmail(), u.getPhone());
+            user sec = userUpdate.findSecondaryUser(u.getEmail(), u.getPhone());
 
             if(pc != null){
-                if (pc.getString("linkedPrecedence").contains("primary") && 
-                pc.getString("email").contains(u.getEmail().toString()) && 
-                pc.getString("phone").contains(u.getPhone().toString())) {
-                    Document sc = saveDetails(u.getEmail().toString(), u.getPhone().toString(), u.getProduct().toString(), pc.getObjectId("_id"), "secondary");
-                    secondaryUpdate(pc.getObjectId("$id"), sc.getObjectId("$id"));
-                    return buildResponse(pc);
+                if (pc.getEmail().contains(u.getEmail()) && pc.getPhone().contains(u.getPhone())) {
+                    updateProduct(u.getProduct(), pc, null);
+                    return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
                 }
                 else
                 {
-
+                    user nc = saveDetails(u.getEmail(), u.getPhone(), "primary");
+                    updateProduct(u.getProduct(), pc, nc);
+                    updateHash(pc, nc, u.getEmail(), u.getPhone());
+                    changeofSecondary(pc, sec);
+                    return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
                 }
-
             }
             else if(sec != null){
-
+                hashing hashed = hash.findByEmailOrPhone(sec.getEmail(), sec.getPhone());
+                Optional<user> oldP = userUpdate.findById(hashed.getPrimary().getId());
+                if(oldP != null)
+                {
+                    if(sec.getEmail().contains(oldP.get().getEmail()) && sec.getPhone().contains(oldP.get().getPhone()))
+                    {
+                        updateProduct(u.getProduct(), oldP.get(), sec);
+                        changeofSecondary(oldP.get(), sec);
+                        updateHash(oldP.get(), sec, sec.getEmail(), sec.getPhone());
+                    }
+                    else
+                    {
+                        user nc = saveDetails(u.getEmail(), u.getPhone(), "primary");
+                        updateProduct(u.getProduct(), oldP.get(), nc);
+                        changeofSecondary(oldP.get(), nc);
+                        updateHash(oldP.get(), nc, u.getEmail(), u.getPhone());
+                    }
+                    return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.SEE_OTHER);
+                }
+                else
+                return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
             }
             else
             {
-                Document nc = saveDetails(u.getEmail().toString(), u.getPhone().toString(), u.getProduct().toString(), null, "primary");
-                createHash(nc.getObjectId("$id"), u.getEmail().toString(), u.getPhone().toString());
-                return buildResponse(nc);
+                user nc = saveDetails(u.getEmail(), u.getPhone(), "primary");
+                updateProduct(u.getProduct(), nc);
+                updateHash(nc, nc.getEmail(), nc.getPhone());
+                return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
             }
         } catch (Exception e) {
-            Map<String, Object> mp = new HashMap<String, Object>();
+            
             mp.put("Error", "Something went wrong");
             return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
         }
