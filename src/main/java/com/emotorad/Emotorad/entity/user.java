@@ -1,5 +1,6 @@
 package com.emotorad.Emotorad.entity;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -22,7 +23,7 @@ import lombok.NoArgsConstructor;
 @Data
 public class user {
     @Id
-    private ObjectId Id;
+    private ObjectId id;
 
     @NonNull
     private String email;
@@ -45,5 +46,6 @@ public class user {
 
     //Referencing to other collection will be carried out here
     @DBRef
-    private List<user> secondaryContacts;
+    @Builder.Default 
+    private List<user> secondaryContacts = new ArrayList<user>();
 }

@@ -1,5 +1,6 @@
 package com.emotorad.Emotorad.entity;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.bson.types.ObjectId;
@@ -23,5 +24,7 @@ public class product {
 
     @DBRef
     private user primaryId;
-    private List<String> items;
+
+    @Builder.Default
+    private List<String> items = new ArrayList<String>();
 }

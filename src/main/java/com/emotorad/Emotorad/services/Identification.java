@@ -10,7 +10,6 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.bson.Document;
 import org.springframework.stereotype.Service;
 
 import com.emotorad.Emotorad.entity.hashing;
@@ -78,6 +77,9 @@ public class Identification {
 
     //save the product only
     private void updateProduct(String items, user id, user change) {
+        System.out.println(items);
+        // System.out.println(id);
+        // System.out.println(change);
         product p = item.findByprimaryId(id);
         List<String> a = p.getItems();
         a.add(items);
@@ -112,15 +114,15 @@ public class Identification {
         userUpdate.save(secondary);
     }
 
-    public ResponseEntity<Map<String, Object>> buildResponse(Document primaryContact) {
-        // Extract fields from the Document
-        Object primaryContactId = primaryContact.getObjectId("_id");
-        String email = primaryContact.getString("email");
-        String phone = primaryContact.getString("phone");
-        List<Object> secondaryContactIds = primaryContact.getList("secondaryContacts", Object.class);
-        Object createdAt = primaryContact.get("createdAt");
-        Object updatedAt = primaryContact.get("updatedAt");
-        Object deletedAt = primaryContact.get("deletedAt");
+    public ResponseEntity<Map<String, Object>> buildResponse(user Status, HttpStatus code) {
+        // Extract fields from the Users
+        String primaryContactId = Status.getId().toString();
+        String email = Status.getEmail();
+        String phone = Status.getPhone();
+        List<user> secondaryContactIds = Status.getSecondaryContacts();
+        Object createdAt = Status.getCreatedAt();
+        Object updatedAt = Status.getUpdatedAt();
+        Object deletedAt = Status.getDeletedAt();
 
         // Construct contactPairs
         List<Map<String, String>> contactPairs = new ArrayList<>();
@@ -139,7 +141,7 @@ public class Identification {
         responseBody.put("deletedAt", deletedAt);
 
         // Return as ResponseEntity
-        return ResponseEntity.status(HttpStatus.OK).body(responseBody);
+        return ResponseEntity.status(code).body(responseBody);
     }
 
     
@@ -148,32 +150,33 @@ public class Identification {
     public ResponseEntity<Map<String, Object>> endPoint(jsonParser u){
         try {
             user pc = userUpdate.findPrimaryUser(u.getEmail(), u.getPhone());
-            user sec = userUpdate.findSecondaryUser(u.getEmail(), u.getPhone());
+            List<user> sec = userUpdate.findSecondaryUser(u.getEmail(), u.getPhone());
 
             if(pc != null){
                 if (pc.getEmail().contains(u.getEmail()) && pc.getPhone().contains(u.getPhone())) {
                     updateProduct(u.getProduct(), pc, null);
-                    return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
+                    return buildResponse(pc,HttpStatus.OK);
                 }
                 else
                 {
                     user nc = saveDetails(u.getEmail(), u.getPhone(), "primary");
                     updateProduct(u.getProduct(), pc, nc);
                     updateHash(pc, nc, u.getEmail(), u.getPhone());
-                    changeofSecondary(pc, sec);
-                    return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
+                    changeofSecondary(pc, nc);
+                    return buildResponse(nc, HttpStatus.CREATED);
                 }
             }
             else if(sec != null){
-                hashing hashed = hash.findByEmailOrPhone(sec.getEmail(), sec.getPhone());
+                hashing hashed = hash.findByEmailOrPhone(sec.get(0).getEmail(), sec.get(0).getPhone());
                 Optional<user> oldP = userUpdate.findById(hashed.getPrimary().getId());
                 if(oldP != null)
                 {
-                    if(sec.getEmail().contains(oldP.get().getEmail()) && sec.getPhone().contains(oldP.get().getPhone()))
+                    if(sec.get(0).getEmail().contains(oldP.get().getEmail()) && sec.get(0).getPhone().contains(oldP.get().getPhone()))
                     {
-                        updateProduct(u.getProduct(), oldP.get(), sec);
-                        changeofSecondary(oldP.get(), sec);
-                        updateHash(oldP.get(), sec, sec.getEmail(), sec.getPhone());
+                        updateProduct(u.getProduct(), oldP.get(), sec.get(0));
+                        changeofSecondary(oldP.get(), sec.get(0));
+                        updateHash(oldP.get(), sec.get(0), sec.get(0).getEmail(), sec.get(0).getPhone());
+                        return buildResponse(sec.get(0), HttpStatus.OK);
                     }
                     else
                     {
@@ -181,21 +184,24 @@ public class Identification {
                         updateProduct(u.getProduct(), oldP.get(), nc);
                         changeofSecondary(oldP.get(), nc);
                         updateHash(oldP.get(), nc, u.getEmail(), u.getPhone());
+                        return buildResponse(nc, HttpStatus.CREATED);
                     }
-                    return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.SEE_OTHER);
                 }
-                else
-                return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
+                else{
+                    mp = new HashMap<String,Object>();
+                    mp.put("Incorrect: ", "Wrong information is provided here");
+                    return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
+                }
             }
             else
             {
                 user nc = saveDetails(u.getEmail(), u.getPhone(), "primary");
                 updateProduct(u.getProduct(), nc);
                 updateHash(nc, nc.getEmail(), nc.getPhone());
-                return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
+                return buildResponse(nc, HttpStatus.CREATED);
             }
         } catch (Exception e) {
-            
+            System.out.println(e.toString());
             mp.put("Error", "Something went wrong");
             return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
         }
