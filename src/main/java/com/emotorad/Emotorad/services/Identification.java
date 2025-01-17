@@ -65,7 +65,7 @@ public class Identification {
         hash.save(h);
     }
 
-    //save the documents here
+    // save the documents here
     private user saveDetails(String email, String phone, String linkPrecedence) {
         user u = new user();
         u.setEmail(email);
@@ -75,21 +75,18 @@ public class Identification {
         return userUpdate.save(u);
     }
 
-    //save the product only
+    // save the product only
     private void updateProduct(String items, user id, user change) {
-        System.out.println(items);
-        // System.out.println(id);
-        // System.out.println(change);
         product p = item.findByprimaryId(id);
         List<String> a = p.getItems();
         a.add(items);
         p.setItems(a);
-        if(change != null) p.setPrimaryId(change);
+        if (change != null)
+            p.setPrimaryId(change);
         item.save(p);
     }
 
-    private void updateProduct(String items, user id)
-    {
+    private void updateProduct(String items, user id) {
         product p = new product();
         p.setPrimaryId(id);
         ArrayList<String> temp = new ArrayList<String>();
@@ -102,10 +99,10 @@ public class Identification {
     private void changeofSecondary(user primary, user secondary) {
         List<user> temp = primary.getSecondaryContacts();
         temp.add(primary);
-        
+
         secondary.setLinkPrecedence("primary");
         secondary.setSecondaryContacts(temp);
-        
+
         primary.setLinkPrecedence("secondary");
         primary.setLinkedId(secondary);
         primary.setSecondaryContacts(new ArrayList<user>());
@@ -144,57 +141,41 @@ public class Identification {
         return ResponseEntity.status(code).body(responseBody);
     }
 
-    
-
     // This is endpoint
-    public ResponseEntity<Map<String, Object>> endPoint(jsonParser u){
+    public ResponseEntity<Map<String, Object>> endPoint(jsonParser u) {
         try {
             user pc = userUpdate.findPrimaryUser(u.getEmail(), u.getPhone());
-            List<user> sec = userUpdate.findSecondaryUser(u.getEmail(), u.getPhone());
+            List<user> secAnd = userUpdate.findSecondaryUserAnd(u.getEmail(), u.getPhone());
+            List<user> secOr = userUpdate.findSecondaryUserOr(u.getEmail(), u.getPhone());
 
-            if(pc != null){
+
+            if (pc != null) {
                 if (pc.getEmail().contains(u.getEmail()) && pc.getPhone().contains(u.getPhone())) {
                     updateProduct(u.getProduct(), pc, null);
-                    return buildResponse(pc,HttpStatus.OK);
-                }
-                else
-                {
+                    return buildResponse(pc, HttpStatus.OK);
+                } else {
                     user nc = saveDetails(u.getEmail(), u.getPhone(), "primary");
                     updateProduct(u.getProduct(), pc, nc);
                     updateHash(pc, nc, u.getEmail(), u.getPhone());
                     changeofSecondary(pc, nc);
                     return buildResponse(nc, HttpStatus.CREATED);
                 }
-            }
-            else if(sec != null){
-                hashing hashed = hash.findByEmailOrPhone(sec.get(0).getEmail(), sec.get(0).getPhone());
+            } else if (!secAnd.isEmpty()) {
+                hashing hashed = hash.findByEmailOrPhone(secAnd.get(0).getEmail(), secAnd.get(0).getPhone());
                 Optional<user> oldP = userUpdate.findById(hashed.getPrimary().getId());
-                if(oldP != null)
-                {
-                    if(sec.get(0).getEmail().contains(oldP.get().getEmail()) && sec.get(0).getPhone().contains(oldP.get().getPhone()))
-                    {
-                        updateProduct(u.getProduct(), oldP.get(), sec.get(0));
-                        changeofSecondary(oldP.get(), sec.get(0));
-                        updateHash(oldP.get(), sec.get(0), sec.get(0).getEmail(), sec.get(0).getPhone());
-                        return buildResponse(sec.get(0), HttpStatus.OK);
-                    }
-                    else
-                    {
-                        user nc = saveDetails(u.getEmail(), u.getPhone(), "primary");
-                        updateProduct(u.getProduct(), oldP.get(), nc);
-                        changeofSecondary(oldP.get(), nc);
-                        updateHash(oldP.get(), nc, u.getEmail(), u.getPhone());
-                        return buildResponse(nc, HttpStatus.CREATED);
-                    }
-                }
-                else{
-                    mp = new HashMap<String,Object>();
-                    mp.put("Incorrect: ", "Wrong information is provided here");
-                    return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
-                }
-            }
-            else
-            {
+                updateProduct(u.getProduct(), oldP.get(), secAnd.get(0));
+                changeofSecondary(oldP.get(), secAnd.get(0));
+                updateHash(oldP.get(), secAnd.get(0), secAnd.get(0).getEmail(), secAnd.get(0).getPhone());
+                return buildResponse(secAnd.get(0), HttpStatus.OK);
+            } else if (!secOr.isEmpty()) {
+                hashing hashed = hash.findByEmailOrPhone(secOr.get(0).getEmail(), secOr.get(0).getPhone());
+                Optional<user> oldP = userUpdate.findById(hashed.getPrimary().getId());
+                user nc = saveDetails(u.getEmail(), u.getPhone(), "primary");
+                updateProduct(u.getProduct(), oldP.get(), nc);
+                changeofSecondary(oldP.get(), nc);
+                updateHash(oldP.get(), nc, u.getEmail(), u.getPhone());
+                return buildResponse(nc, HttpStatus.CREATED);
+            } else {
                 user nc = saveDetails(u.getEmail(), u.getPhone(), "primary");
                 updateProduct(u.getProduct(), nc);
                 updateHash(nc, nc.getEmail(), nc.getPhone());
@@ -203,7 +184,7 @@ public class Identification {
         } catch (Exception e) {
             System.out.println(e.toString());
             mp.put("Error", "Something went wrong");
-            return new ResponseEntity<Map<String,Object>>(mp, HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<Map<String, Object>>(mp, HttpStatus.BAD_REQUEST);
         }
     }
 }

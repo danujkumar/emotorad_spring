@@ -14,5 +14,8 @@ public interface userRepo extends MongoRepository<user, ObjectId> {
     user findPrimaryUser(String email, String phone);
 
     @Query("{ $or: [ { 'email': ?0 }, { 'phone': ?1 } ], 'linkPrecedence': 'secondary' }")
-    List<user> findSecondaryUser(String email, String phone);
+    List<user> findSecondaryUserOr(String email, String phone);
+
+    @Query("{ $and: [ { 'email': ?0 }, { 'phone': ?1 } ], 'linkPrecedence': 'secondary' }")
+    List<user> findSecondaryUserAnd(String email, String phone);
 }
