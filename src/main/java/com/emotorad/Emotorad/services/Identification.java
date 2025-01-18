@@ -112,35 +112,43 @@ public class Identification {
         userUpdate.save(secondary);
     }
 
-    public ResponseEntity<Map<String, Object>> buildResponse(user Status, HttpStatus code) {
-        // Extract fields from the Users
-        String primaryContactId = Status.getId().toString();
-        String email = Status.getEmail();
-        String phone = Status.getPhone();
-        List<user> secondaryContactIds = Status.getSecondaryContacts();
-        Object createdAt = Status.getCreatedAt();
-        Object updatedAt = Status.getUpdatedAt();
-        Object deletedAt = Status.getDeletedAt();
-
-        // Construct contactPairs
+    //This method is used to show the json output
+    public ResponseEntity<Map<String, Object>> buildResponse(user u, HttpStatus code) {
+        String primaryContactId = u.getId().toString();
+        String email = u.getEmail();
+        String phone = u.getPhone();
+        Object createdAt = u.getCreatedAt();
+        Object updatedAt = u.getUpdatedAt();
+        Object deletedAt = u.getDeletedAt();
+    
         List<Map<String, String>> contactPairs = new ArrayList<>();
         Map<String, String> contactMap = new HashMap<>();
         contactMap.put("email", email);
         contactMap.put("phone", phone);
         contactPairs.add(contactMap);
-
+    
+        List<Map<String, String>> secondaryContacts = new ArrayList<>();
+        for (user secondaryContact : u.getSecondaryContacts()) {
+            Map<String, String> contactInfo = new HashMap<>();
+            contactInfo.put("id", secondaryContact.getId().toString());
+            contactInfo.put("email", secondaryContact.getEmail());
+            contactInfo.put("phone", secondaryContact.getPhone());
+            contactInfo.put("linkPrecedence", secondaryContact.getLinkPrecedence());
+            secondaryContacts.add(contactInfo);
+        }
+    
         // Build the response body
         Map<String, Object> responseBody = new HashMap<>();
         responseBody.put("primaryContactId", primaryContactId);
         responseBody.put("contactPairs", contactPairs);
-        responseBody.put("secondaryContactIds", secondaryContactIds);
+        responseBody.put("secondaryContactIds", secondaryContacts);
         responseBody.put("createdAt", createdAt);
         responseBody.put("updatedAt", updatedAt);
         responseBody.put("deletedAt", deletedAt);
-
-        // Return as ResponseEntity
+    
         return ResponseEntity.status(code).body(responseBody);
     }
+    
 
     // This is endpoint
     @Transactional
